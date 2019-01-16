@@ -131,12 +131,14 @@ class Graph(object):
                 logger.error(
                     "Node {} does not have any required link".format(node.name)
                 )
+                # Don't return early since the logs are usefull
                 pass_validation =False
         return pass_validation
 
     def construct_graph_edges(self):
         """
         Construct edges between nodes. Ignore option links
+        Don't return early since the logs are usefull
         """
         # Link nodes together to create graph
         for node in self.nodes:
@@ -157,8 +159,8 @@ class Graph(object):
                 # expect node_links contains list of links
                 for link in node_links:
                     if isinstance(link, dict):
-                        if not link.get("required"):
-                            continue
+                        # if not link.get("required"):
+                        #     continue
                         if "target_type" in link:
                             self._add_required_link_to_node(
                                 node,

@@ -96,12 +96,15 @@ class Node(object):
         The method supports for generating data even when the node does not pass validation.
         Some non-required properties, which can be missed, may fail the validation.
 
+        DON'T RETURN EARLY FOR VALIDATION SINCE THE LOGS ARE USEFULL
+
         Args:
             required_only(bool)
 
         Outputs:
             pass_validation(bool): The node does not pass validation
             is_submitable(bool): The node can be submitted even it does not pass validation
+        
         """
         # if node schema is well-defined
         pass_validation = True
