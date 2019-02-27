@@ -1,5 +1,6 @@
 import json
 from os.path import join
+import random
 
 from node import Node, logger
 from errors import UserError, DictionaryError
@@ -172,8 +173,10 @@ class Graph(object):
                             if not isinstance(sub_links, list):
                                 sub_links = [sub_links]
 
-                            # just pick one of sub-group links
-                            for sub_link in sub_links:
+                            # just pick one of sub-group links            
+                            tries = 0
+                            while tries < 10:
+                                sub_link = sub_links[random.randint(0, len(sub_links)-1)]
                                 if "target_type" in sub_link:
                                     self._add_required_link_to_node(
                                         node,
@@ -182,6 +185,7 @@ class Graph(object):
                                         sub_link.get("multiplicity"),
                                     )
                                     break
+                                tries += 1
 
             except TypeError as e:
                 raise DictionaryError(
