@@ -1,5 +1,6 @@
 import sys
 import random
+import uuid
 
 from cdislogging import get_logger
 
@@ -30,6 +31,8 @@ EXCLUDED_FIELDS = [
 
 
 logger = get_logger("DataSimulator")
+
+project_node_id = str(uuid.uuid4())
 
 
 class Node(object):
@@ -256,7 +259,7 @@ class Node(object):
                 "error_type": "DictionaryError",
             }
 
-    def simulate_data(self, n_samples=1, random=False, required_only=True):
+    def simulate_data(self, vf, ef, n_samples=1, random=False, required_only=True):
         """
         Simulate data for the current node
 
@@ -281,16 +284,41 @@ class Node(object):
                 )
         n_samples = min(min_required_samples, n_samples)
 
-        simulated_data = []
-
         # construct template
         template = self.construct_property_generator_template(
             required_only=required_only
         )
 
+        props = ['~id']
+        for prop, simple_schema in template.iteritems():
+            if simple_schema["data_type"] is None:
+                raise RuntimeError(simple_schema["error_msg"])
+            if simple_schema["data_type"] == "link_type":
+                continue
+            if isinstance(simple_schema['data_type'], list):
+                simple_schema['data_type'] = simple_schema['data_type'][0]
+            if prop == 'node_id':
+                prop = '~id'
+            else:
+                type_ = dict(
+                    boolean='Boolean',
+                    enum='String',
+                    integer='Long',
+                    md5sum='String',
+                    number='Double',
+                    string='String',
+                )
+                prop = ':'.join((prop, type_[simple_schema['data_type']]))
+            props.append(prop)
+        if self.name != 'project':
+            props.append('submitter_id:String')
+        props.append('type:String')
+        vf.writerow(props)
+
         simulated_data = []
         for _ in xrange(n_samples):
-            example = {}
+            row = [project_node_id if self.name == 'project' else str(uuid.uuid4())]
+            example = {"node_id": row[0]}
 
             for prop, simple_schema in template.iteritems():
                 if simple_schema["data_type"] is None:
@@ -299,22 +327,28 @@ class Node(object):
                 elif simple_schema["data_type"] == "link_type":
                     continue
                 else:
-                    example[prop] = Node._simulate_data_from_simple_schema(
+                    val = Node._simulate_data_from_simple_schema(
                         simple_schema
                     )
+                    row.append('true' if val is True else ('false' if val is False else val))
+                    # example[prop] = val
 
             if self.name != 'project':
-                example["submitter_id"] = self._simulate_submitter_id()
-            example["type"] = self.name
+                val = self._simulate_submitter_id()
+                row.append(val)
+                example["submitter_id"] = val
+            # example["type"] = self.name
+            row.append(self.name)
 
             if self.name == 'project':
                 example["code"] = self.project
 
             simulated_data.append(example)
+            vf.writerow(row)
 
         # simulate link properties
         try:
-            self._simulate_link_properties(simulated_data, random)
+            self._simulate_link_properties(ef, simulated_data, random)
             # store to dataset
             if self.name == 'project':
                 self.simulated_dataset = simulated_data[0]
@@ -355,7 +389,7 @@ class Node(object):
 
         return result
     
-    def _simulate_link_properties(self, simulated_data, random=False):
+    def _simulate_link_properties(self, ef, simulated_data, random=False):
         """
         Simulate data for required links
 
@@ -372,11 +406,12 @@ class Node(object):
         """
         for link_node in self.required_links:
             for idx, sample in enumerate(simulated_data):
+                row = [str(uuid.uuid4()), sample['node_id']]
                 if link_node["name"] == "projects":
                     sample[link_node["name"]] = {"code": self.project}
-                    continue
+                    row.append(project_node_id)
 
-                if link_node["multiplicity"] in {"many_to_one", "many_to_many"}:
+                elif link_node["multiplicity"] in {"many_to_one", "many_to_many"}:
                     if random:
                         choosen_sample = random_choice(
                             link_node["node"].simulated_dataset
@@ -387,16 +422,26 @@ class Node(object):
                             if idx < len(link_node["node"].simulated_dataset)
                             else random_choice(link_node["node"].simulated_dataset)
                         )
-                    if choosen_sample:
-                        sample[link_node["name"]] = {
-                            "submitter_id": choosen_sample["submitter_id"]
-                        }
+                    row.append(choosen_sample['node_id'])
+                    sample[link_node["name"]] = {
+                        "submitter_id": choosen_sample["submitter_id"],
+                        "node_id": choosen_sample["node_id"],
+                    }
                 else:
                     sample[link_node["name"]] = {
                         "submitter_id": link_node["node"].simulated_dataset[idx][
                             "submitter_id"
-                        ]
+                        ],
+                        "node_id": link_node["node"].simulated_dataset[idx][
+                            "node_id"
+                        ],
                     }
+                    row.append(link_node["node"].simulated_dataset[idx][
+                            "node_id"
+                        ])
+
+                row.append(link_node['name'])
+                ef.writerow(row)
 
     def _simulate_submitter_id(self):
         return self.name + "_" + generate_string_data()

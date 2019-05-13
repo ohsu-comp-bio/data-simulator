@@ -1,3 +1,4 @@
+import csv
 import json
 from os.path import join
 
@@ -263,22 +264,30 @@ class Graph(object):
                 )
             except UserError as e:
                 raise e
-        for idx, node in enumerate(submission_order):
-            # raise exception if not skip and not pass validation
-            _, is_submitable = node.node_validation()
-            if is_submitable:
-                # simulate data
-                logger.info("Simulating data for node {}".format(node.name))
-                node.simulate_data(
-                    n_samples=n_samples_list[idx],
-                    random=random,
-                    required_only=required_only,
-                )
-            else:
-                if not skip:
-                    raise DictionaryError("Can not simulate node {}".format(node.name))
-                if skip:
-                    logger.error("Can not simulate node {}".format(node.name))
 
-            with open(join(path, node.name + ".json"), "w") as outfile:
-                json.dump(node.simulated_dataset, outfile, indent=4, sort_keys=True)
+        with open(join(path, "gremlin_edges.csv"), "w") as ef:
+            efw = csv.writer(ef)
+            efw.writerow(['~id', '~from', '~to', '~label'])
+            for idx, node in enumerate(submission_order):
+                # raise exception if not skip and not pass validation
+                _, is_submitable = node.node_validation()
+                if is_submitable:
+                    # simulate data
+                    logger.info("Simulating data for node {}".format(node.name))
+                    with open(join(path, node.name + ".csv"), "w") as vf:
+                        rv = node.simulate_data(
+                            csv.writer(vf), efw,
+                            n_samples=n_samples_list[idx],
+                            random=random,
+                            required_only=required_only,
+                        )
+                else:
+                    if not skip:
+                        raise DictionaryError("Can not simulate node {}".format(node.name))
+                    if skip:
+                        logger.error("Can not simulate node {}".format(node.name))
+
+                # with open(join(path, node.name + ".csv"), "w") as outfile:
+                #     csv.writer(outfile).writerows(rv)
+                #     pass
+                #     json.dump(node.simulated_dataset, outfile, indent=4, sort_keys=True)
