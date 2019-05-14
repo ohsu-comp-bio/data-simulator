@@ -312,7 +312,7 @@ class Node(object):
             props.append(prop)
         if self.name != 'project':
             props.append('submitter_id:String')
-        props.append('type:String')
+        props.append('~label')
         vf.writerow(props)
 
         simulated_data = []
@@ -345,6 +345,9 @@ class Node(object):
 
             simulated_data.append(example)
             vf.writerow(row)
+
+            if self.name == 'project':
+                break
 
         # simulate link properties
         try:
