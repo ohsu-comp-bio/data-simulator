@@ -191,7 +191,7 @@ class Graph(object):
                                         sub_link.get("name"),
                                         sub_link.get("multiplicity"),
                                     )
-                                    break
+                                    # break
 
             except TypeError as e:
                 raise DictionaryError(
